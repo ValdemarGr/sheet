@@ -1,0 +1,26 @@
+{
+  "name": "sheet",
+  "scripts": {
+    "start": "vite",
+    "expose": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --port 3000",
+    "test": "web-test-runner \"src/**/__tests__/*.bs.js\"",
+    "clean": "rescript clean -with-deps"
+  },
+  "dependencies": {
+    "rescript-signal": "https://github.com/valdemargr/sig.git#f2a87c5269f04981e7d46cd4271e27feffe03b59"
+  },
+  "devDependencies": {
+    "@jihchi/vite-plugin-rescript": "^1.1.2",
+    "@rescript/react": "^0.10.1",
+    "@ryyppy/rescript-promise": "^2.1.0",
+    "@vitejs/plugin-react": "^1.0.4",
+    "cross-env": "^7.0.3",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "rescript": "^9.1.1",
+    "vite": "^2.5.3",
+    "vite-plugin-html": "^2.1.1"
+  }
+}

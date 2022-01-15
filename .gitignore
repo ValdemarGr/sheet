@@ -1,3 +1,7 @@
+.bsb.lock
+.merlin
+lib
+
 # Logs
 logs
 *.log
