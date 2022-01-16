@@ -9,7 +9,7 @@
     "clean": "rescript clean -with-deps"
   },
   "dependencies": {
-    "rescript-signal": "https://github.com/valdemargr/sig.git#f2a87c5269f04981e7d46cd4271e27feffe03b59"
+    "rescript-signal": "https://github.com/valdemargr/sig.git#ae9a1f7c76a3f03df3972ba35b2ff511942945fc"
   },
   "devDependencies": {
     "@jihchi/vite-plugin-rescript": "^1.1.2",

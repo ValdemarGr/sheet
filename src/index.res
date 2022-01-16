@@ -59,12 +59,6 @@ let parseInt = x =>
   | Some(x) => Result.Ok(x)
   }
 
-let indexInto = (xs, x) =>
-  switch xs[x] {
-  | None => Result.Error(`expected value at index ${x->Int.toString}`)
-  | Some(x) => Result.Ok(x)
-  }
-
 let tupled = (fa, fb) =>
   switch (fa, fb) {
   | (Result.Ok(a), Result.Ok(b)) => Result.Ok((a, b))
@@ -78,18 +72,6 @@ let getRes = (fa, fb) =>
   | Some(a) => Result.Ok(a)
   }
 
-let swap = fa =>
-  switch fa {
-  | Result.Ok(a) => a->Sig.map(x => Result.Ok(x))
-  | Result.Error(e) => Sig.make(() => Result.Error(e))
-  }
-
-let flatSwap = fa =>
-  switch fa {
-  | Result.Ok(a) => a
-  | Result.Error(e) => Sig.make(() => Result.Error(e))
-  }
-
 let rgx = %re("/^(\d+)$/")
 let expandValueToken = (state: sheet, x): Sig.t<Result.t<cell, string>> => {
   if Js.Re.test_(rgx, x) {
@@ -100,8 +82,8 @@ let expandValueToken = (state: sheet, x): Sig.t<Result.t<cell, string>> => {
     let tl = x->Js.String2.sliceToEnd(~from=1)
     let rowI = parseInt(tl)
 
-    tupled(colI, rowI)
-    ->Result.map(((c, r)) => {
+    let res = tupled(colI, rowI)->Result.map(((c, r)) => {
+      Js.log3(`at`, indexToCol(c), r)
       state->Sig.flatMap(xs =>
         switch xs->Array.get(c) {
         | Some(ysSig) =>
@@ -110,7 +92,11 @@ let expandValueToken = (state: sheet, x): Sig.t<Result.t<cell, string>> => {
         }
       )
     })
-    ->flatSwap
+
+    switch res {
+    | Result.Ok(x) => x
+    | Result.Error(e) => Sig.make(() => Result.Error(e))
+    }
   }
 }
 
@@ -140,12 +126,16 @@ let evalExpr = (state: sheet, current): Sig.t<Result.t<float, string>> => {
 let parse = (state: sheet, x: string): Sig.t<cell> => {
   let tokens = Js.String2.split(x, " ")->List.fromArray
 
-  evalExpr(state, tokens)->Sig.map(x => {
-    switch x {
-    | Result.Ok(x) => Number(x)
-    | Result.Error(e) => String(e)
-    }
-  })
+  switch tokens {
+  | list{"=", ...exprToks} =>
+    evalExpr(state, exprToks)->Sig.map(x => {
+      switch x {
+      | Result.Ok(x) => Number(x)
+      | Result.Error(e) => String(e)
+      }
+    })
+  | _ => Sig.make(() => String(x))
+  }
 }
 
 let show = c =>
@@ -153,6 +143,9 @@ let show = c =>
   | String(x) => x
   | Number(x) => x->Float.toString
   }
+
+@module("mobx")
+external untracked: (@uncurry unit => 'a) => 'a = "untracked"
 
 module Cell = {
   @react.component
@@ -164,13 +157,24 @@ module Cell = {
     let parsed = inputState->Sig.useFlatMap(x => parse(state, x))
 
     parsed->Sig.useEffect(x => {
+      Js.log4(indexToCol(col), row, x, state->Sig.get->Array.getUnsafe(0)->Sig.get)
       state->Arr.update(xs =>
-        xs->Js.Array2.unsafe_get(col)->Arr.update(ys => ys->Js.Array2.unsafe_set(row, x))
+        xs->Array.getUnsafe(col)->Arr.update(ys => ys->Array.setUnsafe(row, x))
       )
       None
     })
 
-    let display = Sig.useIfM(isFocus, inputState->Sig.toSig, parsed->Sig.useMap(show))
+    let display = Sig.useMap3(isFocus, inputState->Sig.useToSig, parsed->Sig.useMap(show), (
+      foc,
+      is,
+      p,
+    ) => {
+      if foc {
+        is
+      } else {
+        p
+      }
+    })
 
     <input
       typeof="text"
@@ -196,26 +200,34 @@ module Sheet = {
       xs
     })
 
-    <>
-      {colRange
-      ->Array.map(row => {
-        <>
-          {if row == 0 {
-            <> {colRange->Array.map(col => indexToCol(col)->React.string)->React.array} <br /> </>
-          } else {
-            React.null
-          }}
-          {row->Int.toString->React.string}
-          {rowRange
-          ->Array.map(col => {
-            <Cell.make state={sheetState} row={row} col={col} />
-          })
+    <table>
+      <thead>
+        <tr>
+          <th />
+          {colRange
+          ->Array.map(col =>
+            <th key={`head-${col->Int.toString}`}> {indexToCol(col)->React.string} </th>
+          )
           ->React.array}
-          <br />
-        </>
-      })
-      ->React.array}
-    </>
+        </tr>
+      </thead>
+      <tbody>
+        {rowRange
+        ->Array.map(row => {
+          <tr key={`row-body-${row->Int.toString}`}>
+            <td> {row->Int.toString->React.string} </td>
+            {colRange
+            ->Array.map(col => {
+              <td key={`${row->Int.toString}-${col->Int.toString}`}>
+                <Cell.make state={sheetState} row={row} col={col} />
+              </td>
+            })
+            ->React.array}
+          </tr>
+        })
+        ->React.array}
+      </tbody>
+    </table>
   })
 }
 

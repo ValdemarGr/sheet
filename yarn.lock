@@ -898,9 +898,9 @@ relateurl@^0.2.7:
   resolved "https://registry.yarnpkg.com/relateurl/-/relateurl-0.2.7.tgz#54dbf377e51440aca90a4cd274600d3ff2d888a9"
   integrity sha1-VNvzd+UUQKypCkzSdGANP/LYiKk=
 
-"rescript-signal@https://github.com/valdemargr/sig.git#f2a87c5269f04981e7d46cd4271e27feffe03b59":
+"rescript-signal@https://github.com/valdemargr/sig.git#ae9a1f7c76a3f03df3972ba35b2ff511942945fc":
   version "0.0.1"
-  resolved "https://github.com/valdemargr/sig.git#f2a87c5269f04981e7d46cd4271e27feffe03b59"
+  resolved "https://github.com/valdemargr/sig.git#ae9a1f7c76a3f03df3972ba35b2ff511942945fc"
   dependencies:
     "@ryyppy/rescript-promise" "^2.1.0"
     mobx "^6.3.8"
