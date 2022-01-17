@@ -5,7 +5,7 @@ type cell = String(string) | Number(float)
 
 type matrix<'a> = Arr.t<Arr.t<'a>>
 
-type sheet = matrix<cell>
+type sheet = matrix<Ref.t<cell>>
 
 let alphabet = [
   `A`,
@@ -72,6 +72,15 @@ let getRes = (fa, fb) =>
   | Some(a) => Result.Ok(a)
   }
 
+let tryIndex = (fa, i, name, next) =>
+  fa
+  ->Arr.get(i)
+  ->Sig.flatMap(o =>
+    o
+    ->Option.map(next)
+    ->Option.getWithDefault(Sig.make(() => Result.Error(`${name} ${i->Int.toString} not found`)))
+  )
+
 let rgx = %re("/^(\d+)$/")
 let expandValueToken = (state: sheet, x): Sig.t<Result.t<cell, string>> => {
   if Js.Re.test_(rgx, x) {
@@ -82,20 +91,12 @@ let expandValueToken = (state: sheet, x): Sig.t<Result.t<cell, string>> => {
     let tl = x->Js.String2.sliceToEnd(~from=1)
     let rowI = parseInt(tl)
 
-    let res = tupled(colI, rowI)->Result.map(((c, r)) => {
-      Js.log3(`at`, indexToCol(c), r)
-      state->Sig.flatMap(xs =>
-        switch xs->Array.get(c) {
-        | Some(ysSig) =>
-          ysSig->Sig.map(ys => getRes(ys->Array.get(r), `row ${r->Int.toString} not found`))
-        | None => Sig.make(() => Result.Error(`col ${c->Int.toString} not found`))
-        }
-      )
-    })
-
-    switch res {
-    | Result.Ok(x) => x
+    switch tupled(colI, rowI) {
     | Result.Error(e) => Sig.make(() => Result.Error(e))
+    | Result.Ok((c, r)) =>
+      state->tryIndex(c, "col", rows =>
+        rows->tryIndex(r, "row", r => r->Sig.map(x => Result.Ok(x)))
+      )
     }
   }
 }
@@ -157,24 +158,11 @@ module Cell = {
     let parsed = inputState->Sig.useFlatMap(x => parse(state, x))
 
     parsed->Sig.useEffect(x => {
-      Js.log4(indexToCol(col), row, x, state->Sig.get->Array.getUnsafe(0)->Sig.get)
-      state->Arr.update(xs =>
-        xs->Array.getUnsafe(col)->Arr.update(ys => ys->Array.setUnsafe(row, x))
-      )
+      state->Arr.getUnsafe(col)->Sig.flatten->Arr.getUnsafe(row)->Sig.flatten->Ref.set(x)
       None
     })
 
-    let display = Sig.useMap3(isFocus, inputState->Sig.useToSig, parsed->Sig.useMap(show), (
-      foc,
-      is,
-      p,
-    ) => {
-      if foc {
-        is
-      } else {
-        p
-      }
-    })
+    let display = Sig.useIfM(isFocus, inputState->Sig.useToSig, parsed->Sig.useMap(show))
 
     <input
       typeof="text"
@@ -196,7 +184,7 @@ module Sheet = {
   @react.component
   let make = Sig.component(() => {
     let sheetState: sheet = Arr.use(() => {
-      let xs = colRange->Array.map(_ => Arr.make(rowRange->Array.map(_ => String(""))))
+      let xs = colRange->Array.map(_ => Arr.make(rowRange->Array.map(_ => Ref.make(String("")))))
       xs
     })
 
@@ -235,3 +223,17 @@ switch ReactDOM.querySelector("#root") {
 | Some(elem) => ReactDOM.render(<React.StrictMode> <Sheet /> </React.StrictMode>, elem)
 | None => ()
 }
+
+let xs = Signal_MobX.observable([[[1], [2]], [[3], [4]]])
+
+let do = (c, r) =>
+  Signal_MobX.autorun(() => {
+    Js.log3(c, r, xs->Array.getUnsafe(c)->Array.getUnsafe(r)->Array.getUnsafe(0))
+  })->ignore
+
+do(0, 0)
+do(0, 1)
+do(1, 0)
+do(1, 1)
+
+Signal_MobX.runInAction(() => xs->Array.getUnsafe(0)->Array.getUnsafe(1)->Array.setUnsafe(0, 9))
