@@ -223,17 +223,3 @@ switch ReactDOM.querySelector("#root") {
 | Some(elem) => ReactDOM.render(<React.StrictMode> <Sheet /> </React.StrictMode>, elem)
 | None => ()
 }
-
-let xs = Signal_MobX.observable([[[1], [2]], [[3], [4]]])
-
-let do = (c, r) =>
-  Signal_MobX.autorun(() => {
-    Js.log3(c, r, xs->Array.getUnsafe(c)->Array.getUnsafe(r)->Array.getUnsafe(0))
-  })->ignore
-
-do(0, 0)
-do(0, 1)
-do(1, 0)
-do(1, 1)
-
-Signal_MobX.runInAction(() => xs->Array.getUnsafe(0)->Array.getUnsafe(1)->Array.setUnsafe(0, 9))
